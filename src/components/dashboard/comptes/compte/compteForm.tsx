@@ -52,8 +52,8 @@ export default function CompteForm({
     libelleUo: compte?.libelleUo || "",
     dateCreation: compte?.dateCreation || new Date(),
     pcgNumero: compte?.pcgNumero || "",
-    path: compte?.path || "", // 🔥 Path PCG principal
-    pcgNumeroPerteProfits: compte?.pcgNumeroPerteProfits || "", // 🔥 Path PCG perte/profit
+    path: compte?.path || "",
+    pcgNumeroPerteProfits: compte?.pcgNumeroPerteProfits || "",
   });
 
   const [errors, setErrors] = useState<string[]>([]);
@@ -64,8 +64,8 @@ export default function CompteForm({
   const [uos, setUos] = useState<OrganizationalUnit[]>([]);
   const [pcgs, setPcgs] = useState<Pcg[]>([]);
 
-  // 🔥 IMPORTANT: showPerteProfit uniquement en mode ajout pour les comptes caisse
-  const [showPerteProfit, setShowPerteProfit] = useState(false);
+  const [selectedCompteType, setSelectedCompteType] = useState<CompteType | null>(null);
+  const [showGainFields, setShowGainFields] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -112,8 +112,12 @@ export default function CompteForm({
         pcgNumeroPerteProfits: compte.pcgNumeroPerteProfits || "",
       });
       setIsUtilisateur(!!compte.user);
-      // En mode édition, on ne montre PAS la section perte/profit
-      setShowPerteProfit(false);
+
+      // En mode édition, déterminer le type de compte
+      const type = compteTypes.find(t => t.id === compte.typeCompte);
+      setSelectedCompteType(type || null);
+      // En mode édition, on ne montre PAS la section gain
+      setShowGainFields(false);
     }
   }, [compte]);
 
@@ -141,6 +145,28 @@ export default function CompteForm({
     }
   };
 
+  // 🔥 NOUVEAU: Fonction pour déterminer les labels selon le type de compte
+  const getGainFieldLabels = () => {
+    if (!selectedCompteType) return { numeroLabel: '', pcgLabel: '' };
+
+    const isCaisse = selectedCompteType.libelle?.toLowerCase().includes('caisse');
+    const isAgent = selectedCompteType.libelle?.toLowerCase().includes('agent');
+
+    if (isCaisse) {
+      return {
+        numeroLabel: 'Numéro Compte Perte et Profit *',
+        pcgLabel: 'PCG Perte et Profit *'
+      };
+    } else if (isAgent) {
+      return {
+        numeroLabel: 'Numéro Compte Gain *',
+        pcgLabel: 'PCG Compte Gain *'
+      };
+    }
+
+    return { numeroLabel: '', pcgLabel: '' };
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -159,12 +185,15 @@ export default function CompteForm({
       const selectedType = compteTypes.find(
         (type) => type.id === Number(value)
       );
-      const isCaisse =
-        selectedType?.libelle?.toLowerCase().includes("caisse") || false;
-      setShowPerteProfit(isCaisse);
+      setSelectedCompteType(selectedType || null);
 
-      // Réinitialiser les champs perte/profit si on change de type
-      if (!isCaisse) {
+      const isAvecGain = selectedType?.libelle?.toLowerCase().includes('caisse') ||
+        selectedType?.libelle?.toLowerCase().includes('agent') ||
+        false;
+      setShowGainFields(isAvecGain);
+
+      // Réinitialiser les champs gain si on change de type
+      if (!isAvecGain) {
         setFormData((prev) => ({
           ...prev,
           numPerteProfits: "",
@@ -179,7 +208,6 @@ export default function CompteForm({
     }
   };
 
-  // 🔥 NOUVEAU: Gestion spécifique pour la sélection des PCG
   const handlePcgChange = (
     field: "pcgNumero" | "pcgNumeroPerteProfits",
     value: string
@@ -190,7 +218,6 @@ export default function CompteForm({
       ...prev,
       [field]: value,
       path: field === "pcgNumero" ? selectedPcg?.path || "" : prev.path,
-      // Pour perte/profit, on garde le path dans pcgNumeroPerteProfits
     }));
   };
 
@@ -324,11 +351,10 @@ export default function CompteForm({
               <button
                 type="button"
                 onClick={toggleEntityType}
-                className={`toggle-button flex items-center gap-3 w-full p-3 rounded-xl border transition-all ${
-                  isUtilisateur
+                className={`toggle-button flex items-center gap-3 w-full p-3 rounded-xl border transition-all ${isUtilisateur
                     ? "bg-green-100/50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-800 dark:text-green-200"
                     : "bg-purple-100/50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700 text-purple-800 dark:text-purple-200"
-                }`}
+                  }`}
               >
                 {isUtilisateur ? (
                   <>
@@ -348,13 +374,13 @@ export default function CompteForm({
           </div>
         </div>
 
-        {/* 🔥 SECTION COMPTE CAISSE - UNIQUEMENT en mode ajout */}
-        {!isEdit && showPerteProfit && (
+        {/* COMPTES AVEC GAIN (Caisse ou Agent) - UNIQUEMENT en mode ajout */}
+        {!isEdit && showGainFields && (
           <div className="form-row grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="form-field">
               <label className="field-label flex items-center text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">
                 <TrendingUp className="w-4 h-4 mr-2" />
-                Numéro Compte Perte et Profit *
+                {getGainFieldLabels().numeroLabel}
               </label>
               <div className="input-wrapper relative">
                 <input
@@ -363,7 +389,11 @@ export default function CompteForm({
                   value={formData.numPerteProfits}
                   onChange={handleChange}
                   className="form-input w-full px-3 py-2 pl-10 bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200/30 dark:border-amber-700/30 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder="Numéro de compte perte et profit"
+                  placeholder={
+                    selectedCompteType?.libelle?.toLowerCase().includes('caisse')
+                      ? "Numéro de compte perte et profit"
+                      : "Numéro de compte gain"
+                  }
                   required
                 />
                 <TrendingUp className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-amber-600/70 dark:text-amber-400/70" />
@@ -373,7 +403,7 @@ export default function CompteForm({
             <div className="form-field">
               <label className="field-label flex items-center text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">
                 <BookOpen className="w-4 h-4 mr-2" />
-                PCG Perte et Profit *
+                {getGainFieldLabels().pcgLabel}
               </label>
               <div className="input-wrapper relative">
                 <select
@@ -387,7 +417,7 @@ export default function CompteForm({
                 >
                   <option value="">Sélectionnez un PCG...</option>
                   {pcgs.map((pcg) => (
-                    <option key={`perte-${pcg.path}`} value={pcg.numeroCompte}>
+                    <option key={`gain-${pcg.path}`} value={pcg.numeroCompte}>
                       {pcg.path} - {pcg.libelle}
                     </option>
                   ))}

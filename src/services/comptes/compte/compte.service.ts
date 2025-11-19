@@ -1,5 +1,3 @@
-// @/services/comptes/compte/compte.service.ts
-
 import { IHttpService } from '@/types/auth.types';
 import { ErrorHandlerService, AppError } from '@/services/core/error-handler.service';
 import {
@@ -263,9 +261,19 @@ export class CompteService {
     return 'Non défini';
   }
 
+  // 🔥 NOUVELLES MÉTHODES: Gestion des comptes avec gain
+  public isCompteAvecGain(typeCompte: number): boolean {
+    return this.isCompteCaisse(typeCompte) || this.isCompteAgent(typeCompte);
+  }
+
   public isCompteCaisse(typeCompte: number): boolean {
     const type = this.typeService.getById(typeCompte);
     return type?.libelle?.toLowerCase().includes('caisse') || false;
+  }
+
+  public isCompteAgent(typeCompte: number): boolean {
+    const type = this.typeService.getById(typeCompte);
+    return type?.libelle?.toLowerCase().includes('agent') || false;
   }
 
   public formatSolde(solde?: number): string {

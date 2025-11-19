@@ -15,7 +15,7 @@ export interface AppConfig {
 
 export const APP_CONFIG: AppConfig = {
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.11.146:8081',
+    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.11.107:8081',
     timeout: parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '10000')
   },
   auth: {

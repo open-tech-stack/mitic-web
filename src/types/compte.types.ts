@@ -1,5 +1,3 @@
-// @/types/compte.types.ts
-
 export interface Compte {
   id: number;
   numeroCompte: string;
@@ -53,7 +51,7 @@ export interface CompteState {
 export class CompteValidator {
   static validate(compte: Partial<CompteCreateData>, isEdit: boolean = false): string[] {
     const errors: string[] = [];
-    
+
     if (!compte.numeroCompte?.trim()) {
       errors.push('Le numéro de compte est requis');
     } else if (!/^\d{10,15}$/.test(compte.numeroCompte.trim())) {
@@ -82,20 +80,37 @@ export class CompteValidator {
       errors.push('Le chemin PCG est requis');
     }
 
-    // Validation spécifique pour les comptes caisse UNIQUEMENT en création
-    if (compte.typeCompte && this.isCompteCaisse(compte.typeCompte) && !isEdit) {
+    // Validation spécifique pour les comptes caisse ET agent UNIQUEMENT en création
+    if (compte.typeCompte && this.isCompteAvecGain(compte.typeCompte) && !isEdit) {
       if (!compte.numPerteProfits?.trim()) {
-        errors.push('Le numéro de compte perte et profit est requis pour les comptes caisse');
+        errors.push(this.getGainFieldLabel(compte.typeCompte) + ' est requis');
       }
       if (!compte.pcgNumeroPerteProfits?.trim()) {
-        errors.push('Le PCG perte et profit est requis pour les comptes caisse');
+        errors.push('Le PCG ' + this.getGainFieldLabel(compte.typeCompte).toLowerCase() + ' est requis');
       }
     }
 
     return errors;
   }
 
+  private static isCompteAvecGain(typeCompte: number): boolean {
+    return this.isCompteCaisse(typeCompte) || this.isCompteAgent(typeCompte);
+  }
+
   private static isCompteCaisse(typeCompte: number): boolean {
     return typeCompte === 4;
+  }
+
+  private static isCompteAgent(typeCompte: number): boolean {
+    return typeCompte === 5;
+  }
+
+  private static getGainFieldLabel(typeCompte: number): string {
+    if (this.isCompteCaisse(typeCompte)) {
+      return 'Le numéro de compte perte et profit';
+    } else if (this.isCompteAgent(typeCompte)) {
+      return 'Le numéro de compte gain';
+    }
+    return 'Le numéro de compte';
   }
 }

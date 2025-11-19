@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, Badge, Eye, Calendar, DollarSign, User, CheckCircle, XCircle, Clock, MapPin } from "lucide-react";
+import { Edit, Trash2, Badge, Eye, Calendar, DollarSign, User, CheckCircle, XCircle, Clock, MapPin, RefreshCw } from "lucide-react";
 import DataTable, { Column, TableAction } from "@/components/ui/DataTable";
 import { Abonnement } from "@/types/abonnement.types";
 
@@ -9,6 +9,7 @@ interface AbonnementListProps {
   abonnements: Abonnement[];
   onEditRequested: (abonnement: Abonnement) => void;
   onDelete: (id: number) => void;
+  onRefresh?: () => void;
   canUpdate?: boolean;
   canDelete?: boolean;
 }
@@ -17,6 +18,7 @@ export default function AbonnementList({
   abonnements,
   onEditRequested,
   onDelete,
+  onRefresh,
   canUpdate = false,
   canDelete = false
 }: AbonnementListProps) {
@@ -44,27 +46,30 @@ export default function AbonnementList({
             <User className="w-4 h-4" />
             {row.nomAbonne} {row.prenomAbonne}
           </span>
-          <div className="flex flex-col text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">
-            <span>🚗 {row.abonneImmatriculation}</span>
-          </div>
         </div>
       ),
     },
     {
-      key: "periode",
-      label: "Période",
+      key: "dateDebut",
+      label: "Début abonnement",
       sortable: true,
       render: (value, row) => (
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-purple-600" />
-            <span className="font-medium">{new Date(row.dateDebut).toLocaleDateString('fr-FR')}</span>
-          </div>
-          {row.dateFin && (
-            <span className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">
-              Fin: {new Date(row.dateFin).toLocaleDateString('fr-FR')}
-            </span>
-          )}
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="w-4 h-4 text-purple-600" />
+          <span className="font-medium">{new Date(row.dateDebut).toLocaleDateString('fr-FR')}</span>
+        </div>
+      ),
+    },
+    {
+      key: "dateFin",
+      label: "Fin abonnement",
+      sortable: true,
+      render: (value, row) => (
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="w-4 h-4 text-purple-600" />
+          <span className="font-medium">
+            {row.dateFin ? new Date(row.dateFin).toLocaleDateString('fr-FR') : 'N/A'}
+          </span>
         </div>
       ),
     },
@@ -152,6 +157,13 @@ export default function AbonnementList({
 
   // Actions groupées pour la sélection multiple
   const bulkActions: TableAction[] = [
+    {
+      icon: RefreshCw,
+      label: "Actualiser",
+      onClick: () => onRefresh?.(),
+      className: "flex items-center gap-2 px-3 py-2 bg-purple-100/70 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-xl hover:bg-purple-200/70 dark:hover:bg-purple-800/40 transition-colors",
+      condition: () => true
+    },
     {
       icon: Trash2,
       label: "Supprimer la sélection",

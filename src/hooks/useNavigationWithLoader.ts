@@ -24,7 +24,7 @@ export function useNavigationWithLoader() {
 
     }, [router, pathname]);
 
-    // 🔥 LE SECRET : Cacher le loader SEULEMENT quand la route change
+    // Cacher le loader SEULEMENT quand la route change
     useEffect(() => {
         if (isNavigating) {
             console.log('🔄 Route changed, hiding loader');
