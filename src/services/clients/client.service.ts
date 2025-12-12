@@ -1,37 +1,38 @@
 import { ErrorHandlerService } from "@/services/core/error-handler.service";
 import { ServiceFactory } from "../factory/factory.service";
-import { Abonne, AbonneCreate, AbonneUpdate, AbonneValidator, ApiResponse } from "@/types/abonne.types";
+import { ApiResponse } from "@/types/categorie.types";
+import { Client, ClientCreate, ClientValidator, ClientUpdate } from "@/types/client.types";
 
-interface AbonneState {
-    abonnes: Abonne[];
+interface ClientState {
+    clients: Client[];
     loading: boolean;
     error: string | null;
-    selectedAbonne: Abonne | null;
+    selectedClient: Client | null;
 }
 
-export class AbonneService {
-    private static instance: AbonneService;
-    private readonly endpoint = 'abonnes';
+export class ClientService {
+    private static instance: ClientService;
+    private readonly endpoint = 'clients';
     private httpService = ServiceFactory.createHttpService({ baseUrl: process.env.NEXT_PUBLIC_API_URL || '' });
     private errorHandler = ErrorHandlerService.getInstance();
 
-    private state: AbonneState = {
-        abonnes: [],
+    private state: ClientState = {
+        clients: [],
         loading: false,
         error: null,
-        selectedAbonne: null
+        selectedClient: null
     };
 
-    private stateUpdateCallbacks: ((state: AbonneState) => void)[] = [];
+    private stateUpdateCallbacks: ((state: ClientState) => void)[] = [];
 
-    public static getInstance(): AbonneService {
-        if (!AbonneService.instance) {
-            AbonneService.instance = new AbonneService();
+    public static getInstance(): ClientService {
+        if (!ClientService.instance) {
+            ClientService.instance = new ClientService();
         }
-        return AbonneService.instance;
+        return ClientService.instance;
     }
 
-    subscribe(callback: (state: AbonneState) => void): () => void {
+    subscribe(callback: (state: ClientState) => void): () => void {
         this.stateUpdateCallbacks.push(callback);
         callback(this.state);
 
@@ -43,7 +44,7 @@ export class AbonneService {
         };
     }
 
-    private updateState(newState: Partial<AbonneState>): void {
+    private updateState(newState: Partial<ClientState>): void {
         this.state = { ...this.state, ...newState };
         this.stateUpdateCallbacks.forEach(callback => {
             try {
@@ -54,20 +55,20 @@ export class AbonneService {
         });
     }
 
-    async loadAll(): Promise<Abonne[]> {
+    async loadAll(): Promise<Client[]> {
         this.updateState({ loading: true, error: null });
 
         try {
-            const apiResponse: ApiResponse<Abonne[]> = await this.httpService.get(this.endpoint);
-            const abonnes = Array.isArray(apiResponse.data) ? apiResponse.data : [];
+            const apiResponse: ApiResponse<Client[]> = await this.httpService.get(this.endpoint);
+            const clients = Array.isArray(apiResponse.data) ? apiResponse.data : [];
 
             this.updateState({
-                abonnes: abonnes,
+                clients: clients,
                 loading: false,
                 error: null
             });
 
-            return abonnes;
+            return clients;
         } catch (error) {
             const appError = this.errorHandler.normalizeError(error);
             const errorMessage = this.errorHandler.getUserMessage(appError);
@@ -81,15 +82,23 @@ export class AbonneService {
         }
     }
 
-    async create(abonneData: AbonneCreate): Promise<Abonne> {
+    async create(clientData: ClientCreate): Promise<Client> {
         this.updateState({ loading: true, error: null });
 
         try {
             // Validation
-            const existingImatriculations = this.state.abonnes.map(a => a.immatriculation.toLowerCase());
-            const existingCnibs = this.state.abonnes.map(a => a.cnib.toLowerCase());
+            const existingCnibs = this.state.clients.map(c => c.numeroCNIB.toLowerCase());
+            const existingUsernames = this.state.clients.map(c => c.username.toLowerCase());
+            const existingEmails = this.state.clients
+                .filter(c => c.email)
+                .map(c => c.email.toLowerCase());
 
-            const validationErrors = AbonneValidator.validate(abonneData, existingImatriculations, existingCnibs);
+            const validationErrors = ClientValidator.validate(
+                clientData,
+                existingCnibs,
+                existingUsernames,
+                existingEmails
+            );
 
             if (validationErrors.length > 0) {
                 const errorMessage = validationErrors.join(', ');
@@ -100,28 +109,25 @@ export class AbonneService {
                 throw new Error(errorMessage);
             }
 
-            const apiResponse: ApiResponse<Abonne> = await this.httpService.post(this.endpoint, abonneData);
+            const apiResponse: ApiResponse<Client> = await this.httpService.post(this.endpoint, clientData);
 
-            let newAbonne: Abonne;
+            let newClient: Client;
 
             if (apiResponse && apiResponse.data) {
-                newAbonne = apiResponse.data;
-            } else if (apiResponse && typeof apiResponse === 'object' && 'id' in apiResponse) {
-                const { id, nom, prenom, cnib, nbreTel, immatriculation } = apiResponse as any;
-                newAbonne = { id, nom, prenom, cnib, nbreTel, immatriculation } as Abonne;
+                newClient = apiResponse.data;
             } else {
                 console.warn('Réponse de création non standard, rechargement des données...');
                 await this.loadAll();
-                return this.state.abonnes[this.state.abonnes.length - 1];
+                return this.state.clients[this.state.clients.length - 1];
             }
 
             this.updateState({
-                abonnes: [...this.state.abonnes, newAbonne],
+                clients: [...this.state.clients, newClient],
                 loading: false,
                 error: null
             });
 
-            return newAbonne;
+            return newClient;
         } catch (error) {
             const appError = this.errorHandler.normalizeError(error);
             const errorMessage = this.errorHandler.getUserMessage(appError);
@@ -135,8 +141,8 @@ export class AbonneService {
         }
     }
 
-    async update(abonneData: AbonneUpdate): Promise<Abonne> {
-        if (!abonneData || !abonneData.id) {
+    async update(clientData: ClientUpdate): Promise<Client> {
+        if (!clientData || !clientData.id) {
             const error = new Error('Données invalides: ID manquant pour la mise à jour');
             this.updateState({
                 error: 'ID manquant pour la modification',
@@ -149,15 +155,24 @@ export class AbonneService {
 
         try {
             // Validation
-            const existingImatriculations = this.state.abonnes
-                .filter(a => a.id !== abonneData.id)
-                .map(a => a.immatriculation.toLowerCase());
+            const existingCnibs = this.state.clients
+                .filter(c => c.id !== clientData.id)
+                .map(c => c.numeroCNIB.toLowerCase());
 
-            const existingCnibs = this.state.abonnes
-                .filter(a => a.id !== abonneData.id)
-                .map(a => a.cnib.toLowerCase());
+            const existingUsernames = this.state.clients
+                .filter(c => c.id !== clientData.id)
+                .map(c => c.username.toLowerCase());
 
-            const validationErrors = AbonneValidator.validate(abonneData, existingImatriculations, existingCnibs);
+            const existingEmails = this.state.clients
+                .filter(c => c.id !== clientData.id && c.email)
+                .map(c => c.email.toLowerCase());
+
+            const validationErrors = ClientValidator.validate(
+                clientData,
+                existingCnibs,
+                existingUsernames,
+                existingEmails
+            );
 
             if (validationErrors.length > 0) {
                 const errorMessage = validationErrors.join(', ');
@@ -168,32 +183,29 @@ export class AbonneService {
                 throw new Error(errorMessage);
             }
 
-            const url = `${this.endpoint}/${abonneData.id}`;
-            const apiResponse: ApiResponse<Abonne> = await this.httpService.put(url, abonneData);
+            const url = `${this.endpoint}/${clientData.id}`;
+            const apiResponse: ApiResponse<Client> = await this.httpService.put(url, clientData);
 
-            let updatedAbonne: Abonne;
+            let updatedClient: Client;
 
             if (apiResponse && apiResponse.data) {
-                updatedAbonne = apiResponse.data;
-            } else if (apiResponse && typeof apiResponse === 'object' && 'id' in apiResponse) {
-                const { id, nom, prenom, cnib, nbreTel, immatriculation } = apiResponse as any;
-                updatedAbonne = { id, nom, prenom, cnib, nbreTel, immatriculation } as Abonne;
+                updatedClient = apiResponse.data;
             } else {
                 console.warn('Réponse de mise à jour non standard, utilisation des données locales...');
-                updatedAbonne = { ...abonneData } as Abonne;
+                updatedClient = { ...clientData } as Client;
             }
 
-            const updatedAbonnes = this.state.abonnes.map(abonne =>
-                abonne.id === abonneData.id ? updatedAbonne : abonne
+            const updatedClients = this.state.clients.map(client =>
+                client.id === clientData.id ? updatedClient : client
             );
 
             this.updateState({
-                abonnes: updatedAbonnes,
+                clients: updatedClients,
                 loading: false,
                 error: null
             });
 
-            return updatedAbonne;
+            return updatedClient;
         } catch (error) {
             const appError = this.errorHandler.normalizeError(error);
             const errorMessage = this.errorHandler.getUserMessage(appError);
@@ -224,7 +236,7 @@ export class AbonneService {
             await this.httpService.delete(url);
 
             this.updateState({
-                abonnes: this.state.abonnes.filter(a => a.id !== id),
+                clients: this.state.clients.filter(c => c.id !== id),
                 loading: false,
                 error: null
             });
@@ -241,11 +253,11 @@ export class AbonneService {
         }
     }
 
-    selectAbonne(abonne: Abonne | null): void {
-        this.updateState({ selectedAbonne: abonne });
+    selectClient(client: Client | null): void {
+        this.updateState({ selectedClient: client });
     }
 
-    getCurrentState(): AbonneState {
+    getCurrentState(): ClientState {
         return { ...this.state };
     }
 
@@ -253,17 +265,26 @@ export class AbonneService {
         this.updateState({ error: null });
     }
 
-    // Recherche d'abonné par immatriculation
-    findByImatriculation(immatriculation: string): Abonne | undefined {
-        return this.state.abonnes.find(a =>
-            a.immatriculation.toLowerCase() === immatriculation.toLowerCase()
+    // Recherche de client par CNIB
+    findByCnib(cnib: string): Client | undefined {
+        return this.state.clients.find(c =>
+            c.numeroCNIB.toLowerCase() === cnib.toLowerCase()
         );
     }
 
-    // Recherche d'abonné par CNIB
-    findByCnib(cnib: string): Abonne | undefined {
-        return this.state.abonnes.find(a =>
-            a.cnib.toLowerCase() === cnib.toLowerCase()
+    // Recherche de client par username
+    findByUsername(username: string): Client | undefined {
+        return this.state.clients.find(c =>
+            c.username.toLowerCase() === username.toLowerCase()
         );
+    }
+
+    // Filtrer par type de client
+    getAbonnes(): Client[] {
+        return this.state.clients.filter(c => c.abonne);
+    }
+
+    getClientsOrdinaires(): Client[] {
+        return this.state.clients.filter(c => !c.abonne);
     }
 }

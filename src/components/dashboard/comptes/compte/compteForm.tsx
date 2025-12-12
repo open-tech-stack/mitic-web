@@ -126,7 +126,6 @@ export default function CompteForm({
 
     const submissionData = {
       ...formData,
-      // Les paths sont déjà dans formData via handlePcgChange
     };
 
     const validationErrors = CompteValidator.validate(submissionData, isEdit);

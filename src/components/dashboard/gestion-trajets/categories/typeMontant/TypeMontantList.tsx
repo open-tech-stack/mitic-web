@@ -1,8 +1,9 @@
 // @/components/dashboard/gestion-trajets/categories/typeMontant/TypeMontantList.tsx
+
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, RotateCcw, DollarSign } from "lucide-react";
+import { Edit, Trash2, Calculator } from "lucide-react";
 import DataTable, { Column, TableAction } from "@/components/ui/DataTable";
 import { TypeMontant } from "@/types/typeMontant.types";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
@@ -11,16 +12,14 @@ interface AmountTypeListProps {
   amountTypes: TypeMontant[];
   onEditRequested: (amountType: TypeMontant) => void;
   onDelete: (id: number) => void;
-  onRestore: (id: number) => void;
   canUpdate?: boolean;
   canDelete?: boolean;
 }
 
-export default function AmountTypeList({ 
-  amountTypes, 
-  onEditRequested, 
-  onDelete, 
-  onRestore,
+export default function AmountTypeList({
+  amountTypes,
+  onEditRequested,
+  onDelete,
   canUpdate = false,
   canDelete = false,
 }: AmountTypeListProps) {
@@ -42,6 +41,38 @@ export default function AmountTypeList({
       key: "libelle",
       label: "Libellé",
       sortable: true,
+    },
+    {
+      key: "calculable",
+      label: "Calculable",
+      sortable: true,
+      render: (value) => (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${value
+            ? "bg-green-100/50 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+            : "bg-gray-100/50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300"
+          }`}>
+          {value ? "Oui" : "Non"}
+        </span>
+      ),
+    },
+    {
+      key: "formule",
+      label: "Formule",
+      sortable: false,
+      render: (value, row) => (
+        <div className="max-w-xs">
+          {row.calculable ? (
+            <div className="flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-amber-600/70 dark:text-amber-400/70" />
+              <span className="font-mono text-sm truncate" title={value}>
+                {value || "-"}
+              </span>
+            </div>
+          ) : (
+            <span className="text-gray-500 dark:text-gray-400 text-sm">-</span>
+          )}
+        </div>
+      ),
     }
   ];
 
@@ -52,21 +83,14 @@ export default function AmountTypeList({
       label: "Modifier",
       onClick: (row) => onEditRequested(row),
       className: "p-2 rounded-lg hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors text-amber-600/70 dark:text-amber-400/70",
-      condition: (row) => !row.isDelete && canUpdate
+      condition: () => canUpdate
     },
     {
       icon: Trash2,
       label: "Supprimer",
       onClick: (row) => onDelete(row.id),
       className: "p-2 rounded-lg hover:bg-red-100/50 dark:hover:bg-red-900/30 transition-colors text-red-600/70 dark:text-red-400/70",
-      condition: (row) => !row.isDelete && canDelete
-    },
-    {
-      icon: RotateCcw,
-      label: "Restaurer",
-      onClick: (row) => onRestore(row.id),
-      className: "p-2 rounded-lg hover:bg-green-100/50 dark:hover:bg-green-900/30 transition-colors text-green-600/70 dark:text-green-400/70",
-      condition: (row) => row.isDelete && canUpdate
+      condition: () => canDelete
     },
   ];
 
@@ -76,13 +100,6 @@ export default function AmountTypeList({
       icon: Trash2,
       label: "Supprimer la sélection",
       onClick: (selectedRows) => {
-        // Vérifier qu'aucun élément déjà supprimé n'est sélectionné
-        const hasDeleted = selectedRows.some((row: TypeMontant) => row.isDelete);
-        if (hasDeleted) {
-          alert("Certains éléments sont déjà supprimés.");
-          return;
-        }
-        
         if (confirm(`Voulez-vous vraiment supprimer ${selectedRows.length} élément(s) ?`)) {
           selectedRows.forEach((row: TypeMontant) => onDelete(row.id));
           setSelectedRows([]);
@@ -91,33 +108,14 @@ export default function AmountTypeList({
       className: "flex items-center gap-2 px-3 py-2 bg-red-100/70 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-xl hover:bg-red-200/70 dark:hover:bg-red-800/40 transition-colors",
       condition: () => canDelete
     },
-    {
-      icon: RotateCcw,
-      label: "Restaurer la sélection",
-      onClick: (selectedRows) => {
-        // Vérifier qu'aucun élément non supprimé n'est sélectionné
-        const hasNotDeleted = selectedRows.some((row: TypeMontant) => !row.isDelete);
-        if (hasNotDeleted) {
-          alert("Certains éléments ne sont pas supprimés.");
-          return;
-        }
-        
-        if (confirm(`Voulez-vous vraiment restaurer ${selectedRows.length} élément(s) ?`)) {
-          selectedRows.forEach((row: TypeMontant) => onRestore(row.id));
-          setSelectedRows([]);
-        }
-      },
-      className: "flex items-center gap-2 px-3 py-2 bg-green-100/70 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-xl hover:bg-green-200/70 dark:hover:bg-green-800/40 transition-colors",
-      condition: () => canUpdate
-    },
   ];
 
   // Configuration du tableau
   const tableConfig = {
-    selectable: canDelete || canUpdate, // seulement si on peut supprimer ou restaurer
+    selectable: canDelete || canUpdate,
     pagination: true,
     searchable: true,
-    pageSize: 5,
+    pageSize: 10,
     pageSizes: [5, 10, 25, 50],
     actions: actions,
     bulkActions: bulkActions,
@@ -127,7 +125,7 @@ export default function AmountTypeList({
     <div className="amount-type-list-container-pro">
       <PermissionGuard permission="READ_TYPE_MONTANT" fallback={
         <div className="text-center py-12 text-amber-600/70 dark:text-amber-400/70">
-          <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <Calculator className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p>Vous n'avez pas la permission de voir la liste des types de montant</p>
         </div>
       }>

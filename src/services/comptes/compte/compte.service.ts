@@ -23,7 +23,8 @@ export class CompteService {
     comptes: [],
     loading: false,
     error: null,
-    selectedCompte: null
+    selectedCompte: null,
+    availablePcgs: [] // NOUVEAU: Stocker les PCG disponibles
   };
 
   private subscribers: Array<(state: CompteState) => void> = [];
@@ -34,6 +35,9 @@ export class CompteService {
     this.errorHandler = ErrorHandlerService.getInstance();
     this.typeService = ServiceFactory.createCompteTypeService();
     this.pcgService = ServiceFactory.createPcgService();
+
+    // NOUVEAU: Charger les PCG au démarrage du service
+    this.loadAvailablePcgs();
   }
 
   public static getInstance(): CompteService {
@@ -104,9 +108,38 @@ export class CompteService {
   }
 
   /**
-   * Crée un nouveau compte
+   * Charge les PCG disponibles (NOUVEAU: méthode privée pour usage interne)
    */
-  public async create(compteData: CompteCreateData): Promise<void> {
+  private async loadAvailablePcgs(): Promise<void> {
+    try {
+      await this.pcgService.loadAll();
+      const allPcgs = this.pcgService.getComptesFlat();
+
+      const sortedPcgs = [...allPcgs].sort((a, b) => a.path.localeCompare(b.path));
+
+      const formattedPcgs = sortedPcgs.map((pcg: Pcg) => ({
+        ...pcg,
+        display: `${pcg.path} - ${pcg.libelle}`
+      }));
+
+      // NOUVEAU: Stocker les PCG dans l'état
+      this.setState(prev => ({
+        ...prev,
+        availablePcgs: formattedPcgs
+      }));
+    } catch (error) {
+      console.error('Erreur lors du chargement des PCG:', error);
+      this.setState(prev => ({
+        ...prev,
+        availablePcgs: []
+      }));
+    }
+  }
+
+  /**
+   * Crée un nouveau compte avec fermeture automatique
+   */
+  public async create(compteData: CompteCreateData): Promise<boolean> { // NOUVEAU: retourne boolean pour succès
     // Validation en mode création
     const errors = CompteValidator.validate(compteData, false);
     if (errors.length > 0) {
@@ -150,6 +183,8 @@ export class CompteService {
       // Recharger la liste après création
       await this.loadAll();
 
+      return true; // NOUVEAU: Retourne true pour succès
+
     } catch (error) {
       this.handleError(error, 'create');
       throw error;
@@ -159,7 +194,7 @@ export class CompteService {
   /**
    * Met à jour un compte existant
    */
-  public async update(compte: Compte): Promise<void> {
+  public async update(compte: Compte): Promise<boolean> { // NOUVEAU: retourne boolean pour succès
     if (!compte.id) {
       const error = new Error('ID manquant pour la modification') as any;
       error.type = 'VALIDATION_ERROR';
@@ -193,6 +228,7 @@ export class CompteService {
       }
 
       await this.loadAll();
+      return true; // NOUVEAU: Retourne true pour succès
 
     } catch (error) {
       this.handleError(error, 'update');
@@ -227,23 +263,17 @@ export class CompteService {
   }
 
   /**
-   * Charge les PCG disponibles
+   * Charge les PCG disponibles (NOUVEAU: version publique pour composants)
    */
   public async getAvailablePcgs(): Promise<Pcg[]> {
-    try {
-      await this.pcgService.loadAll();
-      const allPcgs = this.pcgService.getComptesFlat();
-
-      const sortedPcgs = [...allPcgs].sort((a, b) => a.path.localeCompare(b.path));
-
-      return sortedPcgs.map((pcg: Pcg) => ({
-        ...pcg,
-        display: `${pcg.path} - ${pcg.libelle}`
-      }));
-    } catch (error) {
-      console.error('Erreur lors du chargement des PCG:', error);
-      return [];
+    // Si les PCG sont déjà chargés, les retourner directement
+    if (this.state.availablePcgs.length > 0) {
+      return this.state.availablePcgs;
     }
+
+    // Sinon, forcer le rechargement
+    await this.loadAvailablePcgs();
+    return this.state.availablePcgs;
   }
 
   // Méthodes utilitaires
@@ -311,5 +341,10 @@ export class CompteService {
 
   public getById(id: number): Compte | undefined {
     return this.state.comptes.find(c => c.id === id);
+  }
+
+  // NOUVEAU: Getter pour les PCG disponibles
+  public get availablePcgs(): Pcg[] {
+    return [...this.state.availablePcgs];
   }
 }

@@ -1,18 +1,22 @@
 // @/types/localite.types.ts
+
 export interface Localite {
   id: number;
   codeLoc: string;
   libLoc: string;
   virtuel: boolean;
-  tronconIds?: number[]; 
-  libelleTroncons?: string[]; 
+  codeUo?: string; 
+  libelleUo?: string;
+  tronconIds?: number[];
+  libelleTroncons?: string[];
 }
 
 export interface LocaliteCreateRequest {
   codeLoc: string;
   libLoc: string;
   virtuel: boolean;
-  tronconId?: number[]; 
+  codeUo?: string;
+  tronconId?: number[];
 }
 
 export interface LocaliteUpdateRequest {
@@ -20,7 +24,8 @@ export interface LocaliteUpdateRequest {
   codeLoc?: string;
   libLoc?: string;
   virtuel?: boolean;
-  tronconId?: number[]; 
+  codeUo?: string;
+  tronconId?: number[];
 }
 
 export interface ApiResponse<T> {
@@ -60,7 +65,12 @@ export class LocaliteValidator {
     return typeof virtuel === 'boolean';
   }
 
-   static validateTroncon(virtuel: boolean, tronconIds?: number[]): boolean {
+  static validateCodeUo(codeUo: string | undefined): boolean {
+    // Code UO est obligatoire pour toutes les localités
+    return !!(codeUo && codeUo.trim().length > 0);
+  }
+
+  static validateTroncon(virtuel: boolean, tronconIds?: number[]): boolean {
     if (virtuel) {
       return tronconIds !== undefined && tronconIds.length > 0;
     }
@@ -82,4 +92,10 @@ export interface LocaliteState {
   loading: boolean;
   selectedLocalite: Localite | null;
   error: string | null;
+}
+
+// Interface pour UO simplifiée pour le dropdown
+export interface UoSimple {
+  codeUo: string;
+  libUo: string;
 }

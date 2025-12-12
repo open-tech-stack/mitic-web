@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, X, AlertCircle, User, Calendar, DollarSign, Clock, MapPin, Tag } from "lucide-react";
+import { Save, X, AlertCircle, User, Calendar, DollarSign, MapPin, Tag, Car } from "lucide-react";
 import { Abonnement, AbonnementCreate, AbonnementUpdate } from "@/types/abonnement.types";
-import { Abonne } from "@/types/abonne.types";
+import { Client } from "@/types/client.types";
 import { Peage } from "@/types/peage.types";
 import { AbonnementTarif } from "@/types/period-tarif.types";
 import { AbonnementValidator } from "@/types/abonnement.types";
+import ClientSearchSelect from "@/components/ui/ClientSearchSelect";
 
 interface AbonnementFormProps {
   mode: 'add' | 'edit';
   initialData: AbonnementCreate | Abonnement;
   onSubmit: (data: any) => void;
   onCancel: () => void;
-  abonnes: Abonne[];
+  clients: Client[];
   peages: Peage[];
   tarifsAbonnement: AbonnementTarif[];
 }
@@ -23,28 +24,30 @@ export default function AbonnementForm({
   initialData,
   onSubmit,
   onCancel,
-  abonnes,
+  clients,
   peages,
   tarifsAbonnement
 }: AbonnementFormProps) {
   const [formData, setFormData] = useState(initialData);
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedAbonne, setSelectedAbonne] = useState<Abonne | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedPeage, setSelectedPeage] = useState<Peage | null>(null);
   const [selectedTarif, setSelectedTarif] = useState<AbonnementTarif | null>(null);
 
   // Mettre à jour les sélections quand les données changent
   useEffect(() => {
-    const abonne = abonnes.find(a => a.id === formData.abonneId) || null;
-    setSelectedAbonne(abonne);
+    if (mode === 'edit' && 'abonneId' in initialData) {
+      const client = clients.find(c => c.id === initialData.abonneId) || null;
+      setSelectedClient(client);
+    }
 
     const peage = peages.find(p => p.id === formData.peage) || null;
     setSelectedPeage(peage);
 
     const tarif = tarifsAbonnement.find(t => t.id === formData.tarifId) || null;
     setSelectedTarif(tarif);
-  }, [formData.abonneId, formData.peage, formData.tarifId, abonnes, peages, tarifsAbonnement]);
+  }, [formData.peage, formData.tarifId, peages, tarifsAbonnement, initialData, mode, clients]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +70,14 @@ export default function AbonnementForm({
     }));
   };
 
+  const handleClientSelect = (client: Client) => {
+    setSelectedClient(client);
+    setFormData(prev => ({
+      ...prev,
+      abonneId: client.id
+    }));
+  };
+
   const getTodayDate = () => {
     return new Date().toISOString().split('T')[0];
   };
@@ -80,68 +91,72 @@ export default function AbonnementForm({
   return (
     <form onSubmit={handleSubmit} className="abonnement-form-pro">
       <div className="form-content space-y-6">
-        {/* Sélection de l'abonné */}
-        <div className="abonne-selection-section">
+        {/* Recherche et sélection du client */}
+        <div className="client-selection-section">
           <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4 flex items-center gap-2">
             <User className="w-5 h-5" />
-            Sélection de l'Abonné
+            Recherche et Sélection du Client
             <span className="required text-red-500 ml-1">*</span>
           </h3>
 
-          {abonnes.length === 0 ? (
+          {clients.length === 0 ? (
             <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl text-center">
               <p className="text-yellow-700 dark:text-yellow-300 text-sm">
-                Aucun abonné disponible. Veuillez d'abord créer des abonnés.
+                Aucun client disponible. Veuillez d'abord créer des clients.
               </p>
             </div>
           ) : (
             <>
-              <select
-                name="abonneId"
-                value={formData.abonneId}
-                onChange={handleChange}
-                className={`form-select w-full px-3 py-2 bg-purple-50/50 dark:bg-purple-900/20 border border-purple-200/30 dark:border-purple-700/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent ${errors.length > 0 ? 'border-red-300 dark:border-red-700' : ''
-                  }`}
-                required
-                disabled={mode === 'edit'}
-              >
-                <option value={0}>Sélectionnez un abonné</option>
-                {abonnes.map(abonne => (
-                  <option key={abonne.id} value={abonne.id}>
-                    {abonne.nom} {abonne.prenom}
-                  </option>
-                ))}
-              </select>
+              <ClientSearchSelect
+                clients={clients}
+                onClientSelect={handleClientSelect}
+                selectedClient={selectedClient}
+                placeholder="Tapez le nom, prénom ou téléphone du client..."
+                className="mb-4"
+              />
 
-              {/* Informations de l'abonné sélectionné */}
-              {selectedAbonne && (
-                <div className="mt-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
-                  <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">
-                    Informations de l'abonné sélectionné :
+              {/* Informations du client sélectionné */}
+              {selectedClient && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl border border-purple-200/30 dark:border-purple-700/30">
+                  <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-3 flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Client Sélectionné
                   </h4>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                     <div>
-                      <span className="text-purple-600/70 dark:text-purple-400/70">Nom :</span>
-                      <span className="ml-2 text-purple-900 dark:text-purple-100">
-                        {selectedAbonne.nom} {selectedAbonne.prenom}
+                      <span className="text-purple-600/70 dark:text-purple-400/70">Nom complet :</span>
+                      <span className="ml-2 text-purple-900 dark:text-purple-100 font-semibold">
+                        {selectedClient.nom} {selectedClient.prenom}
                       </span>
                     </div>
                     <div>
                       <span className="text-purple-600/70 dark:text-purple-400/70">Téléphone :</span>
                       <span className="ml-2 text-purple-900 dark:text-purple-100">
-                        {selectedAbonne.nbreTel}
+                        {selectedClient.numeroTelephone}
                       </span>
                     </div>
                     <div>
-                      <span className="text-purple-600/70 dark:text-purple-400/70">Immatriculation :</span>
+                      <span className="text-purple-600/70 dark:text-purple-400/70">Localité :</span>
                       <span className="ml-2 text-purple-900 dark:text-purple-100">
-                        {selectedAbonne.immatriculation}
+                        {selectedClient.localite}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-purple-600/70 dark:text-purple-400/70">Email :</span>
+                      <span className="ml-2 text-purple-900 dark:text-purple-100">
+                        {selectedClient.email || 'Non renseigné'}
                       </span>
                     </div>
                     <div>
                       <span className="text-purple-600/70 dark:text-purple-400/70">CNIB :</span>
-                      <span className="ml-2 text-purple-900 dark:text-purple-100">
-                        {selectedAbonne.cnib}
+                      <span className="ml-2 text-purple-900 dark:text-purple-100 font-mono">
+                        {selectedClient.numeroCNIB}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-purple-600/70 dark:text-purple-400/70">Type :</span>
+                      <span className={`ml-2 px-2 py-1 rounded-full text-xs ${selectedClient.abonne ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'}`}>
+                        {selectedClient.abonne ? 'Abonné' : 'Client ordinaire'}
                       </span>
                     </div>
                   </div>
@@ -149,6 +164,32 @@ export default function AbonnementForm({
               )}
             </>
           )}
+        </div>
+
+        {/* Immatriculation */}
+        <div className="immatriculation-section">
+          <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4 flex items-center gap-2">
+            <Car className="w-5 h-5" />
+            Immatriculation du Véhicule
+            <span className="required text-red-500 ml-1">*</span>
+          </h3>
+
+          <div className="form-field">
+            <input
+              type="text"
+              name="abonneImmatriculation"
+              value={formData.abonneImmatriculation}
+              onChange={handleChange}
+              maxLength={20}
+              className={`form-input w-full px-3 py-3 bg-purple-50/50 dark:bg-purple-900/20 border border-purple-200/30 dark:border-purple-700/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg font-mono ${errors.length > 0 ? 'border-red-300 dark:border-red-700' : ''
+                }`}
+              placeholder="Ex: AB-123-CD"
+              required
+            />
+            <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-2">
+              Saisissez l'immatriculation du véhicule pour cet abonnement
+            </p>
+          </div>
         </div>
 
         {/* Sélection du péage */}
@@ -171,23 +212,24 @@ export default function AbonnementForm({
                 name="peage"
                 value={formData.peage}
                 onChange={handleChange}
-                className={`form-select w-full px-3 py-2 bg-purple-50/50 dark:bg-purple-900/20 border border-purple-200/30 dark:border-purple-700/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent ${errors.length > 0 ? 'border-red-300 dark:border-red-700' : ''
+                className={`form-select w-full px-3 py-3 bg-purple-50/50 dark:bg-purple-900/20 border border-purple-200/30 dark:border-purple-700/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent ${errors.length > 0 ? 'border-red-300 dark:border-red-700' : ''
                   }`}
                 required
               >
                 <option value={0}>Sélectionnez un péage</option>
                 {peages.map(peage => (
                   <option key={peage.id} value={peage.id}>
-                    {peage.libPeage}
+                    {peage.libPeage} - {peage.libLoc}
                   </option>
                 ))}
               </select>
 
               {/* Informations du péage sélectionné */}
               {selectedPeage && (
-                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                    Informations du péage sélectionné :
+                <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Péage Sélectionné
                   </h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -204,7 +246,7 @@ export default function AbonnementForm({
                     </div>
                     <div>
                       <span className="text-blue-600/70 dark:text-blue-400/70">Code :</span>
-                      <span className="ml-2 text-blue-900 dark:text-blue-100">
+                      <span className="ml-2 text-blue-900 dark:text-blue-100 font-mono">
                         {selectedPeage.codPeage}
                       </span>
                     </div>
@@ -235,7 +277,7 @@ export default function AbonnementForm({
                 name="tarifId"
                 value={formData.tarifId}
                 onChange={handleChange}
-                className={`form-select w-full px-3 py-2 bg-purple-50/50 dark:bg-purple-900/20 border border-purple-200/30 dark:border-purple-700/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent ${errors.length > 0 ? 'border-red-300 dark:border-red-700' : ''
+                className={`form-select w-full px-3 py-3 bg-purple-50/50 dark:bg-purple-900/20 border border-purple-200/30 dark:border-purple-700/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent ${errors.length > 0 ? 'border-red-300 dark:border-red-700' : ''
                   }`}
                 required
               >
@@ -249,9 +291,10 @@ export default function AbonnementForm({
 
               {/* Informations du tarif sélectionné */}
               {selectedTarif && (
-                <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                  <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2">
-                    Informations du tarif sélectionné :
+                <div className="mt-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                  <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Tarif Sélectionné
                   </h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -276,7 +319,7 @@ export default function AbonnementForm({
                     )}
                     <div>
                       <span className="text-green-600/70 dark:text-green-400/70">Montant :</span>
-                      <span className="ml-2 text-green-900 dark:text-green-100 font-bold">
+                      <span className="ml-2 text-green-900 dark:text-green-100 font-bold text-lg">
                         {selectedTarif.montant.toLocaleString('fr-FR')} F
                       </span>
                     </div>
@@ -291,7 +334,7 @@ export default function AbonnementForm({
         <div className="date-debut-section">
           <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Date de Début
+            Date de Début de l'Abonnement
             <span className="required text-red-500 ml-1">*</span>
           </h3>
 
@@ -302,10 +345,13 @@ export default function AbonnementForm({
               value={formData.dateDebut}
               onChange={handleChange}
               min={getTodayDate()}
-              className={`form-input w-full px-3 py-2 bg-purple-50/50 dark:bg-purple-900/20 border border-purple-200/30 dark:border-purple-700/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent ${errors.length > 0 ? 'border-red-300 dark:border-red-700' : ''
+              className={`form-input w-full px-3 py-3 bg-purple-50/50 dark:bg-purple-900/20 border border-purple-200/30 dark:border-purple-700/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent ${errors.length > 0 ? 'border-red-300 dark:border-red-700' : ''
                 }`}
               required
             />
+            <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-2">
+              Sélectionnez la date à partir de laquelle l'abonnement sera actif
+            </p>
           </div>
         </div>
 
@@ -326,7 +372,7 @@ export default function AbonnementForm({
         <button
           type="button"
           onClick={onCancel}
-          className="btn-cancel flex-1 flex items-center justify-center gap-2 bg-purple-100/50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-4 py-2 rounded-xl hover:bg-purple-200/50 dark:hover:bg-purple-800/30 transition-colors"
+          className="btn-cancel flex-1 flex items-center justify-center gap-2 bg-purple-100/50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-4 py-3 rounded-xl hover:bg-purple-200/50 dark:hover:bg-purple-800/30 transition-colors"
         >
           <X className="w-4 h-4" />
           Annuler
@@ -334,18 +380,18 @@ export default function AbonnementForm({
 
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="btn-submit flex-1 flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isSubmitting || !selectedClient}
+          className="btn-submit flex-1 flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-3 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             <>
-              <span className="animate-spin">⏳</span>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               En cours...
             </>
           ) : (
             <>
               <Save className="w-4 h-4" />
-              {mode === 'add' ? 'Enregistrer' : 'Modifier'}
+              {mode === 'add' ? 'Créer l\'Abonnement' : 'Modifier l\'Abonnement'}
             </>
           )}
         </button>

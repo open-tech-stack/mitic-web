@@ -1,3 +1,5 @@
+import { Pcg } from "./pcg.types";
+
 export interface Compte {
   id: number;
   numeroCompte: string;
@@ -45,6 +47,7 @@ export interface CompteState {
   loading: boolean;
   error: string | null;
   selectedCompte: Compte | null;
+  availablePcgs: Pcg[];
 }
 
 // Validateur simplifié

@@ -61,8 +61,6 @@ export class AbonnementService {
             const apiResponse: ApiResponse<Abonnement[]> = await this.httpService.get(this.endpoint);
             const abonnements = Array.isArray(apiResponse.data) ? apiResponse.data : [];
 
-            console.log(apiResponse.data);
-
             this.updateState({
                 abonnements: abonnements,
                 loading: false,
@@ -105,16 +103,6 @@ export class AbonnementService {
 
             if (apiResponse && apiResponse.data) {
                 newAbonnement = apiResponse.data;
-            } else if (apiResponse && typeof apiResponse === 'object' && 'id' in apiResponse) {
-                const { id, abonneId, peage, tarifId, dateDebut, actif } = apiResponse as any;
-                newAbonnement = {
-                    id,
-                    abonneId,
-                    peage,
-                    tarifId,
-                    dateDebut,
-                    actif
-                } as Abonnement;
             } else {
                 console.warn('Réponse de création non standard, rechargement des données...');
                 await this.loadAll();
@@ -173,16 +161,6 @@ export class AbonnementService {
 
             if (apiResponse && apiResponse.data) {
                 updatedAbonnement = apiResponse.data;
-            } else if (apiResponse && typeof apiResponse === 'object' && 'id' in apiResponse) {
-                const { id, abonneId, peage, tarifId, dateDebut, actif } = apiResponse as any;
-                updatedAbonnement = {
-                    id,
-                    abonneId,
-                    peage,
-                    tarifId,
-                    dateDebut,
-                    actif
-                } as Abonnement;
             } else {
                 console.warn('Réponse de mise à jour non standard, utilisation des données locales...');
                 updatedAbonnement = { ...abonnementData } as Abonnement;

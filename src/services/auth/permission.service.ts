@@ -81,12 +81,12 @@ export class PermissionService {
       { code: 'UPDATE_PEAGE', description: 'Modifier un péage', category: 'PEAGE' },
       { code: 'DELETE_PEAGE', description: 'Supprimer un péage', category: 'PEAGE' },
 
-      // Permissions pour les abonnés
-      { code: 'CRUD_ABONNE', description: 'Accès complet aux abonnés', category: 'ABONNE' },
-      { code: 'CREATE_ABONNE', description: 'Créer un abonné', category: 'ABONNE' },
-      { code: 'READ_ABONNE', description: 'Lire les abonnés', category: 'ABONNE' },
-      { code: 'UPDATE_ABONNE', description: 'Modifier un abonné', category: 'ABONNE' },
-      { code: 'DELETE_ABONNE', description: 'Supprimer un abonné', category: 'ABONNE' },
+      // Permissions pour les clients
+      { code: 'CRUD_CLIENT', description: 'Accès complet aux clients', category: 'CLIENT' },
+      { code: 'CREATE_CLIENT', description: 'Créer un client', category: 'CLIENT' },
+      { code: 'READ_CLIENT', description: 'Lire les clients', category: 'CLIENT' },
+      { code: 'UPDATE_CLIENT', description: 'Modifier un client', category: 'CLIENT' },
+      { code: 'DELETE_CLIENT', description: 'Supprimer un client', category: 'CLIENT' },
 
       // Permissions pour les abonnements
       { code: 'CRUD_ABONNEMENT', description: 'Accès complet aux abonnements', category: 'ABONNEMENT' },

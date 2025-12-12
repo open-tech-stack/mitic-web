@@ -24,7 +24,7 @@ import { CaisseService } from "../caissier/caissier.service";
 import { AgentCaisseService } from "../agents/agent.service";
 import { EtatCaisseService } from "../agents/etatCaisse.service";
 import { AbonnementService } from "../abonnements/abonnement.service";
-import { AbonneService } from "../abonnes/abonne.service";
+import { ClientService } from "../clients/client.service";
 import { AbonnementTarifService } from "../period-tarif/period-tarif.service";
 
 /**
@@ -50,7 +50,7 @@ export class ServiceFactory {
   private static agentCaisseServiceInstance: AgentCaisseService | null = null;
   private static etatCaisseServiceInstance: EtatCaisseService | null = null;
   private static periodTarifServiceInstance: AbonnementTarifService | null = null;
-  private static abonneServiceInstance: AbonneService | null = null;
+  private static clientServiceInstance: ClientService | null = null;
   private static abonnementServiceInstance: AbonnementService | null = null;
 
   /**
@@ -152,11 +152,11 @@ export class ServiceFactory {
   }
 
 
-  public static createAbonneService(): AbonneService {
-    if (!ServiceFactory.abonneServiceInstance) {
-      ServiceFactory.abonneServiceInstance = AbonneService.getInstance();
+  public static createAbonneService(): ClientService {
+    if (!ServiceFactory.clientServiceInstance) {
+      ServiceFactory.clientServiceInstance = ClientService.getInstance();
     }
-    return ServiceFactory.abonneServiceInstance;
+    return ServiceFactory.clientServiceInstance;
   }
 
   public static createAbonnementService(): AbonnementService {
@@ -191,7 +191,7 @@ export class ServiceFactory {
     ServiceFactory.agentCaisseServiceInstance = null;
     ServiceFactory.etatCaisseServiceInstance = null;
     ServiceFactory.periodTarifServiceInstance = null;
-    ServiceFactory.abonneServiceInstance = null;
+    ServiceFactory.clientServiceInstance = null;
     ServiceFactory.abonnementServiceInstance = null;
   }
 

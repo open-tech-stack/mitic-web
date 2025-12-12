@@ -1,4 +1,5 @@
 // @/services/localite/localite.service.ts
+
 import { ErrorHandlerService } from "@/services/core/error-handler.service";
 import {
     Localite,
@@ -6,7 +7,8 @@ import {
     LocaliteUpdateRequest,
     LocaliteApiResponse,
     LocaliteStats,
-    LocaliteState
+    LocaliteState,
+    UoSimple
 } from "@/types/localite.types";
 import { ServiceFactory } from "../factory/factory.service";
 
@@ -19,6 +21,7 @@ export class LocaliteService {
     private static instance: LocaliteService;
     private readonly endpoint = 'localites';
     private readonly tronconEndpoint = 'troncons/allTroncons';
+    private readonly uoEndpoint = 'arbre'; // Endpoint pour récupérer les UOs
     private httpService: any;
     private errorHandler: ErrorHandlerService;
 
@@ -29,6 +32,9 @@ export class LocaliteService {
         selectedLocalite: null,
         error: null
     };
+
+    // Cache pour les UOs
+    private uos: UoSimple[] = [];
 
     // Callbacks pour les mises à jour d'état
     private stateUpdateCallbacks: ((state: LocaliteState) => void)[] = [];
@@ -91,7 +97,57 @@ export class LocaliteService {
         return { total, virtuelles, reelles };
     }
 
-    // Nouvelle méthode pour récupérer les tronçons
+    // Nouvelle méthode pour récupérer les UOs
+    async getUos(): Promise<UoSimple[]> {
+        try {
+            // Si déjà chargées, retourner depuis le cache
+            if (this.uos.length > 0) {
+                return this.uos;
+            }
+
+            const response = await this.httpService.get(this.uoEndpoint);
+
+            // Convertir la réponse en tableau d'UOs simples
+            const uosData = response.data || [];
+            this.uos = this.flattenUos(uosData);
+
+            return this.uos;
+        } catch (error: any) {
+            const appError = this.errorHandler.normalizeError(error);
+            const errorMessage = this.errorHandler.getUserMessage(appError);
+            console.error("Erreur lors du chargement des UOs:", errorMessage);
+            return []; // Retourner tableau vide en cas d'erreur
+        }
+    }
+
+    // Méthode pour aplatir la hiérarchie des UOs
+    private flattenUos(uosData: any[]): UoSimple[] {
+        const result: UoSimple[] = [];
+
+        const flatten = (nodes: any[]) => {
+            nodes.forEach(node => {
+                result.push({
+                    codeUo: node.codeUo,
+                    libUo: node.libUo
+                });
+
+                if (node.enfants && node.enfants.length > 0) {
+                    flatten(node.enfants);
+                }
+            });
+        };
+
+        flatten(uosData);
+        return result;
+    }
+
+    // Méthode pour obtenir le libellé d'une UO par son code
+    getUoLibelle(codeUo: string): string {
+        const uo = this.uos.find(u => u.codeUo === codeUo);
+        return uo ? uo.libUo : codeUo; // Retourner le code si non trouvé
+    }
+
+    // Méthode pour récupérer les tronçons
     async getTroncons(): Promise<Troncon[]> {
         try {
             const response = await this.httpService.get(this.tronconEndpoint);
@@ -107,13 +163,22 @@ export class LocaliteService {
         this.updateState({ loading: true, error: null });
 
         try {
+            // Charger les UOs d'abord
+            await this.getUos();
+
             const apiResponse: LocaliteApiResponse = await this.httpService.get(this.endpoint);
 
             const localitesFiltrees = (apiResponse.data || []).filter(
                 loc => loc.codeLoc !== null && loc.codeLoc !== undefined && loc.codeLoc !== ''
             );
 
-            const uniques = localitesFiltrees.filter(
+            // Ajouter le libellé UO à chaque localité
+            const localitesEnrichies = localitesFiltrees.map(loc => ({
+                ...loc,
+                libelleUo: loc.codeUo ? this.getUoLibelle(loc.codeUo) : undefined
+            }));
+
+            const uniques = localitesEnrichies.filter(
                 (loc, index, self) =>
                     index === self.findIndex(l => l.codeLoc === loc.codeLoc)
             );
@@ -132,35 +197,41 @@ export class LocaliteService {
         }
     }
 
-    // Dans la méthode createLocalite
     async createLocalite(localiteData: LocaliteCreateRequest): Promise<Localite> {
         this.updateState({ loading: true, error: null });
 
         try {
+            // S'assurer que codeUo est présent
+            if (!localiteData.codeUo) {
+                throw new Error("L'UO est obligatoire pour créer une localité");
+            }
+
             // S'assurer que tronconId est un tableau même si vide
             const dataToSend = {
                 ...localiteData,
                 tronconId: localiteData.tronconId || []
             };
 
-            // 🔥 CONSOLE LOG - Voir ce qui est envoyé au backend
             console.log('🔄 DONNÉES ENVOYÉES AU BACKEND:', {
                 endpoint: this.endpoint,
                 data: dataToSend,
-                tronconId: dataToSend.tronconId,
-                typeTronconId: typeof dataToSend.tronconId,
-                isArray: Array.isArray(dataToSend.tronconId),
-                arrayLength: Array.isArray(dataToSend.tronconId) ? dataToSend.tronconId.length : 'N/A'
+                codeUo: dataToSend.codeUo
             });
 
             const createdLocalite: Localite = await this.httpService.post(this.endpoint, dataToSend);
 
+            // Ajouter le libellé UO à la localité créée
+            const localiteWithUo = {
+                ...createdLocalite,
+                libelleUo: createdLocalite.codeUo ? this.getUoLibelle(createdLocalite.codeUo) : undefined
+            };
+
             this.updateState({
-                localites: [...this.state.localites, createdLocalite],
+                localites: [...this.state.localites, localiteWithUo],
                 loading: false
             });
 
-            return createdLocalite;
+            return localiteWithUo;
         } catch (error: any) {
             const appError = this.errorHandler.normalizeError(error);
             const errorMessage = this.errorHandler.getUserMessage(appError);
@@ -169,7 +240,6 @@ export class LocaliteService {
         }
     }
 
-    // Dans la méthode updateLocalite
     async updateLocalite(id: number, localiteData: Partial<LocaliteUpdateRequest>): Promise<Localite> {
         this.updateState({ loading: true, error: null });
 
@@ -183,12 +253,18 @@ export class LocaliteService {
             const url = `${this.endpoint}/${id}`;
             const updatedLocalite: Localite = await this.httpService.put(url, dataToSend);
 
+            // Ajouter le libellé UO à la localité mise à jour
+            const localiteWithUo = {
+                ...updatedLocalite,
+                libelleUo: updatedLocalite.codeUo ? this.getUoLibelle(updatedLocalite.codeUo) : undefined
+            };
+
             const updatedLocalites = this.state.localites.map(l =>
-                l.id === id ? { ...l, ...updatedLocalite } : l
+                l.id === id ? { ...l, ...localiteWithUo } : l
             );
 
             const updatedSelectedLocalite = this.state.selectedLocalite?.id === id
-                ? { ...this.state.selectedLocalite, ...updatedLocalite }
+                ? { ...this.state.selectedLocalite, ...localiteWithUo }
                 : this.state.selectedLocalite;
 
             this.updateState({
@@ -197,7 +273,7 @@ export class LocaliteService {
                 loading: false
             });
 
-            return updatedLocalite;
+            return localiteWithUo;
         } catch (error: any) {
             const appError = this.errorHandler.normalizeError(error);
             const errorMessage = this.errorHandler.getUserMessage(appError);
@@ -288,6 +364,14 @@ export class LocaliteService {
         }));
     }
 
+    // Méthode pour obtenir les UOs formatées pour les dropdowns
+    getUosForDropdown(): Array<{ value: string; label: string }> {
+        return this.uos.map(uo => ({
+            value: uo.codeUo,
+            label: `${uo.codeUo} - ${uo.libUo}`
+        }));
+    }
+
     // Réinitialiser l'état du service
     resetState(): void {
         this.updateState({
@@ -296,5 +380,6 @@ export class LocaliteService {
             selectedLocalite: null,
             error: null
         });
+        this.uos = [];
     }
 }

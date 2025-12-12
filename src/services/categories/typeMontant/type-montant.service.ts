@@ -37,7 +37,7 @@ export class TypeMontantService {
     this.stateUpdateCallbacks.push(callback);
     // Envoi immédiat de l'état actuel
     callback(this.state);
-    
+
     return () => {
       const index = this.stateUpdateCallbacks.indexOf(callback);
       if (index > -1) {
@@ -64,23 +64,23 @@ export class TypeMontantService {
     try {
       const apiResponse: ApiResponse<TypeMontant[]> = await this.httpService.get(this.endpoint);
       const types = Array.isArray(apiResponse.data) ? apiResponse.data : [];
-      
-      this.updateState({ 
+
+      this.updateState({
         types: types,
         loading: false,
         error: null
       });
-      
+
       return types;
     } catch (error) {
       const appError = this.errorHandler.normalizeError(error);
       const errorMessage = this.errorHandler.getUserMessage(appError);
-      
-      this.updateState({ 
+
+      this.updateState({
         error: errorMessage,
-        loading: false 
+        loading: false
       });
-      
+
       throw error;
     }
   }
@@ -90,67 +90,56 @@ export class TypeMontantService {
 
     try {
       // Validation
-      const validationErrors = TypeMontantValidator.validate(typeData, 
-        this.state.types.filter(t => !t.isDelete).map(t => t.libelle.toLowerCase())
+      const validationErrors = TypeMontantValidator.validate(typeData,
+        this.state.types.map(t => t.libelle.toLowerCase())
       );
-      
+
       if (validationErrors.length > 0) {
         const errorMessage = validationErrors.join(', ');
-        this.updateState({ 
+        this.updateState({
           error: errorMessage,
-          loading: false 
+          loading: false
         });
         throw new Error(errorMessage);
       }
 
-      // Préparer les données à envoyer (uniquement id et libelle pour le backend)
       const dataToSend = {
-        libelle: typeData.libelle
+        libelle: typeData.libelle,
+        calculable: typeData.calculable,
+        formule: typeData.calculable ? typeData.formule : ''
       };
 
       const apiResponse: ApiResponse<TypeMontant> = await this.httpService.post(this.endpoint, dataToSend);
-      
-      // Validation plus flexible de la réponse
+
       let newType: TypeMontant;
-      
+
       if (apiResponse && apiResponse.data) {
         newType = apiResponse.data;
       } else if (apiResponse && typeof apiResponse === 'object' && 'id' in apiResponse) {
-        // Si la réponse directe contient l'objet créé
-        const { id, libelle } = apiResponse as any;
-        newType = { id, libelle } as TypeMontant;
+        const { id, libelle, calculable, formule } = apiResponse as any;
+        newType = { id, libelle, calculable, formule } as TypeMontant;
       } else {
-        // En dernier recours, rechargeons les données depuis le serveur
-        console.warn('Réponse de création non standard, rechargement des données...');
         await this.loadAll();
         return this.state.types[this.state.types.length - 1];
       }
 
-      // Ajouter les champs d'évolution future avec des valeurs par défaut
-      const completeType: TypeMontant = {
-        ...newType,
-        calcul: typeData.calcul || false,
-        calculateur: typeData.calculateur || '',
-        isDelete: typeData.isDelete || false,
-        createdAt: typeData.createdAt || new Date()
-      };
-
-      this.updateState({ 
-        types: [...this.state.types, completeType],
+      // Mettre à jour l'état local
+      this.updateState({
+        types: [...this.state.types, newType],
         loading: false,
         error: null
       });
-      
-      return completeType;
+
+      return newType;
     } catch (error) {
       const appError = this.errorHandler.normalizeError(error);
       const errorMessage = this.errorHandler.getUserMessage(appError);
-      
-      this.updateState({ 
+
+      this.updateState({
         error: errorMessage,
-        loading: false 
+        loading: false
       });
-      
+
       throw error;
     }
   }
@@ -159,9 +148,9 @@ export class TypeMontantService {
     // Vérification préalable
     if (!typeData || !typeData.id) {
       const error = new Error('Données invalides: ID manquant pour la mise à jour');
-      this.updateState({ 
+      this.updateState({
         error: 'ID manquant pour la modification',
-        loading: false 
+        loading: false
       });
       throw error;
     }
@@ -170,71 +159,62 @@ export class TypeMontantService {
 
     try {
       // Validation
-      const validationErrors = TypeMontantValidator.validate(typeData, 
+      const validationErrors = TypeMontantValidator.validate(typeData,
         this.state.types
-          .filter(t => t.id !== typeData.id && !t.isDelete)
+          .filter(t => t.id !== typeData.id)
           .map(t => t.libelle.toLowerCase())
       );
-      
+
       if (validationErrors.length > 0) {
         const errorMessage = validationErrors.join(', ');
-        this.updateState({ 
+        this.updateState({
           error: errorMessage,
-          loading: false 
+          loading: false
         });
         throw new Error(errorMessage);
       }
 
-      // Préparer les données à envoyer (uniquement id et libelle pour le backend)
       const dataToSend = {
-        libelle: typeData.libelle
+        libelle: typeData.libelle,
+        calculable: typeData.calculable,
+        formule: typeData.calculable ? typeData.formule : ''
       };
 
       const url = `${this.endpoint}/${typeData.id}`;
       const apiResponse: ApiResponse<TypeMontant> = await this.httpService.put(url, dataToSend);
-      
-      // Validation plus flexible de la réponse
+
       let updatedType: TypeMontant;
-      
+
       if (apiResponse && apiResponse.data) {
         updatedType = apiResponse.data;
       } else if (apiResponse && typeof apiResponse === 'object' && 'id' in apiResponse) {
-        // Si la réponse directe contient l'objet mis à jour
-        const { id, libelle } = apiResponse as any;
-        updatedType = { id, libelle } as TypeMontant;
+        const { id, libelle, calculable, formule } = apiResponse as any;
+        updatedType = { id, libelle, calculable, formule } as TypeMontant;
       } else {
-        // En dernier recours, utilisons les données que nous avons envoyées
-        console.warn('Réponse de mise à jour non standard, utilisation des données locales...');
         updatedType = typeData;
       }
 
-      // Conserver les champs d'évolution future
-      const completeType: TypeMontant = {
-        ...updatedType,
-        calcul: typeData.calcul || false,
-        calculateur: typeData.calculateur || '',
-        isDelete: typeData.isDelete || false,
-        createdAt: typeData.createdAt
-      };
+      // Mettre à jour l'état local
+      const updatedTypes = this.state.types.map(t =>
+        t.id === updatedType.id ? updatedType : t
+      );
 
       this.updateState({
-        types: this.state.types.map(t => 
-          t.id === completeType.id ? completeType : t
-        ),
+        types: updatedTypes,
         loading: false,
-        error: null
+        selectedType: null
       });
-      
-      return completeType;
+
+      return updatedType;
     } catch (error) {
       const appError = this.errorHandler.normalizeError(error);
       const errorMessage = this.errorHandler.getUserMessage(appError);
-      
-      this.updateState({ 
+
+      this.updateState({
         error: errorMessage,
-        loading: false 
+        loading: false
       });
-      
+
       throw error;
     }
   }
@@ -242,9 +222,9 @@ export class TypeMontantService {
   async delete(id: number): Promise<void> {
     if (!id) {
       const error = new Error('ID manquant pour la suppression');
-      this.updateState({ 
+      this.updateState({
         error: 'ID manquant pour la suppression',
-        loading: false 
+        loading: false
       });
       throw error;
     }
@@ -254,61 +234,25 @@ export class TypeMontantService {
     try {
       const url = `${this.endpoint}/${id}`;
       await this.httpService.delete(url);
-      
-      // Soft delete: marquer comme supprimé plutôt que de supprimer réellement
+
+      // Suppression définitive du tableau
+      const updatedTypes = this.state.types.filter(t => t.id !== id);
+
       this.updateState({
-        types: this.state.types.map(t => 
-          t.id === id ? {...t, isDelete: true} : t
-        ),
+        types: updatedTypes,
         loading: false,
         error: null
       });
+
     } catch (error) {
       const appError = this.errorHandler.normalizeError(error);
       const errorMessage = this.errorHandler.getUserMessage(appError);
-      
-      this.updateState({ 
-        error: errorMessage,
-        loading: false 
-      });
-      
-      throw error;
-    }
-  }
 
-  // Méthode pour restaurer un élément (soft delete)
-  async restore(id: number): Promise<void> {
-    if (!id) {
-      const error = new Error('ID manquant pour la restauration');
-      this.updateState({ 
-        error: 'ID manquant pour la restauration',
-        loading: false 
-      });
-      throw error;
-    }
-
-    this.updateState({ loading: true, error: null });
-
-    try {
-      // Pour un vrai backend, vous auriez un endpoint spécifique pour la restauration
-      // Pour l'instant, on simule juste la restauration côté client
-      
       this.updateState({
-        types: this.state.types.map(t => 
-          t.id === id ? {...t, isDelete: false} : t
-        ),
-        loading: false,
-        error: null
-      });
-    } catch (error) {
-      const appError = this.errorHandler.normalizeError(error);
-      const errorMessage = this.errorHandler.getUserMessage(appError);
-      
-      this.updateState({ 
         error: errorMessage,
-        loading: false 
+        loading: false
       });
-      
+
       throw error;
     }
   }

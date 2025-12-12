@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Cloud, Navigation, Edit, Trash2 } from "lucide-react";
+import { MapPin, Cloud, Navigation, Edit, Trash2, Building } from "lucide-react";
 import DataTable, {
   Column,
   TableAction,
@@ -15,8 +15,11 @@ export interface LocaliteData {
   codeLoc: string;
   libLoc: string;
   virtuel: boolean;
+  codeUo?: string;  // Ajout du code UO
+  libelleUo?: string; // Ajout du libellé UO
   tronconId?: number;
   libelleTroncon?: string;
+  libelleTroncons?: string[];
 }
 
 interface ListLocaliteProps {
@@ -70,6 +73,26 @@ export default function ListLocalite({
       ),
     },
     {
+      key: "libelleUo",
+      label: "UO",
+      sortable: true,
+      render: (value, row) => (
+        <div className="flex items-center">
+          <Building className="w-4 h-4 mr-2 text-blue-600/70 dark:text-blue-400/70" />
+          <div className="min-w-0">
+            <span className="font-medium text-blue-900 dark:text-blue-100 truncate block">
+              {value || row.codeUo || "Non spécifiée"}
+            </span>
+            {row.codeUo && (
+              <span className="text-xs text-blue-600/70 dark:text-blue-400/70">
+                Code: {row.codeUo}
+              </span>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
       key: "virtuel",
       label: "Type",
       sortable: true,
@@ -95,7 +118,7 @@ export default function ListLocalite({
                 <div className="text-sm text-blue-700 dark:text-blue-300">
                   <div className="font-medium mb-1">Tronçons associés:</div>
                   <div className="flex flex-wrap gap-1">
-                    {row.libelleTroncons.map((libelle:any, index:any) => (
+                    {row.libelleTroncons.map((libelle: any, index: any) => (
                       <span
                         key={index}
                         className="inline-block px-2 py-1 rounded text-xs bg-blue-100 dark:bg-blue-800/50 border border-blue-200 dark:border-blue-600"

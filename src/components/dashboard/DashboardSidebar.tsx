@@ -265,18 +265,18 @@ const getMenuItems = (hasPermission: (permission: string) => boolean, userRole?:
 
     // ==================== GESTION DES CAISSES ====================
 
-    //=======ABONE===//
+    //=======ABONNE===//
 
     {
       name: 'Abonnement',
       icon: UserCheck,
-      requiredPermissions: [' READ_ABONNE', 'READ_ABONNEMENT'],
+      requiredPermissions: [' READ_CLIENT', 'READ_ABONNEMENT'],
       children: [
         {
-          name: 'Abonnes',
-          href: '/dashboard/abonnement/abonnes',
+          name: 'Clients',
+          href: '/dashboard/abonnement/clients',
           icon: Users,
-          requiredPermissions: ['READ_ABONNE'],
+          requiredPermissions: ['READ_CLIENT'],
 
         },
         {

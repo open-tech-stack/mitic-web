@@ -5,17 +5,11 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CreditCard,
-  Users,
   Plus,
   Edit,
-  Trash2,
-  Eye,
-  Download,
   List,
-  Star,
   User,
   Building2,
-  BarChart3,
   Wallet,
   RefreshCw,
 } from "lucide-react";
@@ -33,8 +27,6 @@ export default function ComptesPage() {
   const [selectedCompte, setSelectedCompte] = useState<Compte | null>(null);
   const [loading, setLoading] = useState(false);
   const [comptes, setComptes] = useState<Compte[]>([]);
-
-  
 
   const compteService = ServiceFactory.createCompteService();
   const { hasPermission, hasAnyPermission } = useAuth();
@@ -101,7 +93,7 @@ export default function ComptesPage() {
     personnels: comptes.filter((c) => c.typeCompte === 3).length,
   };
 
-  // 🔥 CORRECTION: Handlers avec fermeture modale après succès
+  // 🔥 CORRECTION SIMPLIFIÉE: Fermeture IMMÉDIATE du formulaire
   const handleAddCompte = async (compteData: CompteCreateData) => {
     if (!canCreateCompte) {
       alert("Vous n'avez pas la permission de créer un compte");
@@ -109,13 +101,16 @@ export default function ComptesPage() {
     }
 
     try {
-      await compteService.create(compteData);
-      // Fermer le modal après succès - le backend ne retourne rien
+      // Fermer IMMÉDIATEMENT le modal
       setShowAddModal(false);
+
+      // Lancer la création en arrière-plan
+      await compteService.create(compteData);
+
       // L'actualisation se fait automatiquement via le service (loadAll appelé dans create)
     } catch (error) {
       console.error("Erreur lors de l'ajout du compte:", error);
-      // Ne pas fermer le modal en cas d'erreur
+      // Le modal est déjà fermé, l'erreur sera affichée via le service
     }
   };
 
@@ -126,11 +121,13 @@ export default function ComptesPage() {
     }
 
     try {
+      // Fermer IMMÉDIATEMENT le modal
+      setShowEditModal(false);
+      setSelectedCompte(null);
+
       if ('id' in compteData) {
+        // Lancer la modification en arrière-plan
         await compteService.update(compteData as Compte);
-        // Fermer le modal après succès
-        setShowEditModal(false);
-        setSelectedCompte(null);
       }
     } catch (error) {
       console.error("Erreur lors de la modification du compte:", error);
@@ -229,9 +226,8 @@ export default function ComptesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-amber-600/70 dark:text-amber-400/70 text-sm">Solde Total</p>
-                  <p className={`text-2xl font-bold ${
-                    soldeTotal >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                  }`}>
+                  <p className={`text-2xl font-bold ${soldeTotal >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                    }`}>
                     {new Intl.NumberFormat("fr-FR", {
                       style: "currency",
                       currency: "XOF",

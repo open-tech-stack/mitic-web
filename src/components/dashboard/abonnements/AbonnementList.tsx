@@ -99,7 +99,7 @@ export default function AbonnementList({
       ),
     },
     {
-      key: "immatriculation",
+      key: "abonneImmatriculation",
       label: "Immatriculation",
       sortable: true,
       render: (value, row) => (

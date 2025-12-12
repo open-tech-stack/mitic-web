@@ -3,11 +3,8 @@
 export interface TypeMontant {
   id: number;
   libelle: string;
-  // Champs pour évolution future (non utilisés pour le moment)
-  calcul?: boolean;
-  calculateur?: string;
-  isDelete?: boolean;
-  createdAt?: Date;
+  calculable: boolean;
+  formule: string;
 }
 
 export interface ApiResponse<T> {
@@ -20,7 +17,7 @@ export interface ApiResponse<T> {
 export class TypeMontantValidator {
   static validate(typeMontant: Partial<TypeMontant>, existingLibelles: string[] = []): string[] {
     const errors: string[] = [];
-    
+
     // Validation libellé
     if (!typeMontant.libelle?.trim()) {
       errors.push('Le libellé est requis');
@@ -29,7 +26,25 @@ export class TypeMontantValidator {
     } else if (existingLibelles.includes(typeMontant.libelle.toLowerCase())) {
       errors.push('Un type de montant avec ce libellé existe déjà');
     }
-    
+
+    // Validation pour les types calculables
+    if (typeMontant.calculable) {
+      if (!typeMontant.formule?.trim()) {
+        errors.push('La formule est requise pour un type calculable');
+      } else {
+        // Vérifier qu'il y a au moins un opérateur dans la formule
+        const hasOperator = /[\+\-\*\/]/.test(typeMontant.formule);
+        if (!hasOperator) {
+          errors.push('La formule doit contenir au moins un opérateur (+, -, *, /)');
+        }
+      }
+    } else {
+      // Si non calculable, formule doit être vide
+      if (typeMontant.formule && typeMontant.formule.trim() !== '') {
+        errors.push('La formule ne doit pas être renseignée pour un type non calculable');
+      }
+    }
+
     return errors;
   }
 }

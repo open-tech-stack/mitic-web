@@ -10,6 +10,7 @@ import {
   Tag,
   List,
   RefreshCw,
+  Calculator,
 } from "lucide-react";
 import AmountTypeForm from "@/components/dashboard/gestion-trajets/categories/typeMontant/TypeMontantForm";
 import AmountTypeList from "@/components/dashboard/gestion-trajets/categories/typeMontant/TypeMontantList";
@@ -24,19 +25,15 @@ export default function AmountTypePage() {
   const [amountTypes, setAmountTypes] = useState<TypeMontant[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [selectedAmountType, setSelectedAmountType] =
-  useState<TypeMontant | null>(null);
+  const [selectedAmountType, setSelectedAmountType] = useState<TypeMontant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  
 
-
-  
   const typeMontantService = ServiceFactory.createTypeMontantService();
-  
+
   const { hasPermission, hasAnyPermission } = useAuth();
-  
+
   // Vérifications des permissions types de montant
   const canReadTypeMontant = hasPermission('READ_TYPE_MONTANT') || hasPermission('CRUD_TYPE_MONTANT');
   const canCreateTypeMontant = hasPermission('CREATE_TYPE_MONTANT') || hasPermission('CRUD_TYPE_MONTANT');
@@ -89,42 +86,29 @@ export default function AmountTypePage() {
     toast.success("Liste des types de montant actualisée avec succès");
   };
 
-  // Si l'utilisateur n'a aucune permission type de montant
-  if (!hasAnyPermission(['READ_TYPE_MONTANT', 'CREATE_TYPE_MONTANT', 'UPDATE_TYPE_MONTANT', 'DELETE_TYPE_MONTANT', 'CRUD_TYPE_MONTANT'])) {
-    return (
-      <div className="min-h-screen bg-amber-50/30 dark:bg-amber-950/10 p-6 flex items-center justify-center">
-        <div className="text-center">
-          <DollarSign className="w-16 h-16 text-amber-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-amber-900 dark:text-amber-100 mb-2">
-            Accès non autorisé
-          </h1>
-          <p className="text-amber-600/70 dark:text-amber-400/70">
-            Vous n'avez pas les permissions nécessaires pour accéder à cette section.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const activeCount = amountTypes.filter((at) => !at.isDelete).length;
+  // Statistiques
+  const calculableCount = amountTypes.filter((at) => at.calculable).length;
+  const nonCalculableCount = amountTypes.length - calculableCount;
   const stats = {
     total: amountTypes.length,
-    active: activeCount,
+    calculable: calculableCount,
+    nonCalculable: nonCalculableCount,
   };
 
   // Handlers
   const handleAdd = () => {
     if (!canCreateTypeMontant) {
-      alert("Vous n'avez pas la permission de créer un type de montant");
+      toast.error("Vous n'avez pas la permission de créer un type de montant");
       return;
     }
     setShowAddForm(true);
     setShowEditForm(false);
+    setSelectedAmountType(null);
   };
 
   const handleEditRequested = (amountType: TypeMontant) => {
     if (!canUpdateTypeMontant) {
-      alert("Vous n'avez pas la permission de modifier un type de montant");
+      toast.error("Vous n'avez pas la permission de modifier un type de montant");
       return;
     }
     setSelectedAmountType(amountType);
@@ -144,7 +128,7 @@ export default function AmountTypePage() {
 
   const handleCreate = async (amountTypeData: Omit<TypeMontant, "id">) => {
     if (!canCreateTypeMontant) {
-      alert("Vous n'avez pas la permission de créer un type de montant");
+      toast.error("Vous n'avez pas la permission de créer un type de montant");
       return;
     }
 
@@ -160,7 +144,7 @@ export default function AmountTypePage() {
 
   const handleUpdate = async (amountTypeData: TypeMontant) => {
     if (!canUpdateTypeMontant) {
-      alert("Vous n'avez pas la permission de modifier un type de montant");
+      toast.error("Vous n'avez pas la permission de modifier un type de montant");
       return;
     }
 
@@ -176,7 +160,7 @@ export default function AmountTypePage() {
 
   const handleDelete = async (id: number) => {
     if (!canDeleteTypeMontant) {
-      alert("Vous n'avez pas la permission de supprimer un type de montant");
+      toast.error("Vous n'avez pas la permission de supprimer un type de montant");
       return;
     }
 
@@ -188,21 +172,6 @@ export default function AmountTypePage() {
         console.error("Erreur lors de la suppression:", error);
         toast.error("Erreur lors de la suppression du type de montant");
       }
-    }
-  };
-
-  const handleRestore = async (id: number) => {
-    if (!canUpdateTypeMontant) {
-      alert("Vous n'avez pas la permission de restaurer un type de montant");
-      return;
-    }
-
-    try {
-      await typeMontantService.restore(id);
-      toast.success("Type de montant restauré avec succès");
-    } catch (error) {
-      console.error("Erreur lors de la restauration:", error);
-      toast.error("Erreur lors de la restauration du type de montant");
     }
   };
 
@@ -247,9 +216,9 @@ export default function AmountTypePage() {
         </div>
       </div>
 
-      {/* Section des statistiques - seulement si on peut lire */}
+      {/* Section des statistiques */}
       <PermissionGuard permission="READ_TYPE_MONTANT">
-        <div className="stats-section grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 mb-8">
+        <div className="stats-section grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 mb-8">
           <div className="stat-card bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/20 rounded-2xl p-6 backdrop-blur-sm border border-amber-200/30 dark:border-amber-700/30">
             <div className="flex items-center justify-between">
               <div>
@@ -266,18 +235,34 @@ export default function AmountTypePage() {
             </div>
           </div>
 
-          <div className="stat-card bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/20 rounded-2xl p-6 backdrop-blur-sm border border-amber-200/30 dark:border-amber-700/30">
+          <div className="stat-card bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/20 rounded-2xl p-6 backdrop-blur-sm border border-green-200/30 dark:border-green-700/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-amber-600/70 dark:text-amber-400/70 text-sm">
-                  Types Actifs
+                <p className="text-green-600/70 dark:text-green-400/70 text-sm">
+                  Types Calculables
                 </p>
-                <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">
-                  {stats.active}
+                <p className="text-2xl font-bold text-green-900 dark:text-green-100">
+                  {stats.calculable}
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-amber-200/30 dark:bg-amber-700/30">
-                <Tag className="w-6 h-6 text-amber-700 dark:text-amber-300" />
+              <div className="p-3 rounded-xl bg-green-200/30 dark:bg-green-700/30">
+                <Calculator className="w-6 h-6 text-green-700 dark:text-green-300" />
+              </div>
+            </div>
+          </div>
+
+          <div className="stat-card bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/20 rounded-2xl p-6 backdrop-blur-sm border border-blue-200/30 dark:border-blue-700/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-600/70 dark:text-blue-400/70 text-sm">
+                  Types Simples
+                </p>
+                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                  {stats.nonCalculable}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-200/30 dark:bg-blue-700/30">
+                <Tag className="w-6 h-6 text-blue-700 dark:text-blue-300" />
               </div>
             </div>
           </div>
@@ -311,7 +296,6 @@ export default function AmountTypePage() {
             amountTypes={amountTypes}
             onEditRequested={handleEditRequested}
             onDelete={handleDelete}
-            onRestore={handleRestore}
             canUpdate={canUpdateTypeMontant}
             canDelete={canDeleteTypeMontant}
           />
@@ -327,7 +311,7 @@ export default function AmountTypePage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="modal-container bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+                className="modal-container bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="modal-header p-6 border-b border-amber-200/30 dark:border-amber-700/30">
@@ -350,12 +334,18 @@ export default function AmountTypePage() {
                 <div className="modal-content p-6">
                   <AmountTypeForm
                     mode="add"
-                    initialData={{ libelle: "", isDelete: false }}
+                    initialData={{
+                      libelle: "",
+                      calculable: false,
+                      formule: ""
+                    }}
                     onSubmit={handleCreate}
                     onCancel={handleCancel}
-                    existingLibelles={amountTypes
-                      .filter((at) => !at.isDelete)
-                      .map((at) => at.libelle.toLowerCase())}
+                    existingLibelles={amountTypes.map((at) => at.libelle.toLowerCase())}
+                    existingTypes={amountTypes.map(at => ({
+                      libelle: at.libelle,
+                      calculable: at.calculable
+                    }))}
                   />
                 </div>
               </motion.div>
@@ -373,7 +363,7 @@ export default function AmountTypePage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="modal-container bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+                className="modal-container bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="modal-header p-6 border-b border-amber-200/30 dark:border-amber-700/30">
@@ -400,10 +390,14 @@ export default function AmountTypePage() {
                     onSubmit={handleUpdate}
                     onCancel={handleCancel}
                     existingLibelles={amountTypes
-                      .filter(
-                        (at) => at.id !== selectedAmountType.id && !at.isDelete
-                      )
+                      .filter((at) => at.id !== selectedAmountType.id)
                       .map((at) => at.libelle.toLowerCase())}
+                    existingTypes={amountTypes
+                      .filter((at) => at.id !== selectedAmountType.id)
+                      .map(at => ({
+                        libelle: at.libelle,
+                        calculable: at.calculable
+                      }))}
                   />
                 </div>
               </motion.div>

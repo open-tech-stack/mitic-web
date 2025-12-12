@@ -1,5 +1,3 @@
-
-
 export interface Abonnement {
     id: number;
     abonneId: number;
@@ -10,14 +8,29 @@ export interface Abonnement {
     tarifId: number;
     peage: number;
     peageLabel: string;
+    periodicityId: number;
+    periodicity: string;
     abonneImmatriculation: string;
     actif: boolean;
     montant: number;
     typeCategories: string;
+    immatriculationId: number;
     created_at?: string;
     updated_at?: string;
 
-    // Jointures optionnelles pour l'affichage
+    // Informations supplémentaires pour l'affichage
+    client?: {
+        id: number;
+        nom: string;
+        prenom: string;
+        numeroTelephone: string;
+        localite: string;
+        username: string;
+        email: string;
+        numeroCNIB: string;
+        abonne: boolean;
+    };
+
     tarifAbonnement?: {
         id: number;
         libelle: string;
@@ -33,6 +46,8 @@ export interface AbonnementCreate {
     peage: number;
     tarifId: number;
     dateDebut: string;
+    abonneImmatriculation: string;
+    periodicityId?: number;
 }
 
 export interface AbonnementUpdate extends AbonnementCreate {
@@ -65,6 +80,13 @@ export class AbonnementValidator {
         // Validation tarif d'abonnement
         if (!abonnement.tarifId) {
             errors.push("Le tarif d'abonnement est requis");
+        }
+
+        // Validation immatriculation
+        if (!abonnement.abonneImmatriculation?.trim()) {
+            errors.push("L'immatriculation est requise");
+        } else if (abonnement.abonneImmatriculation.trim().length > 20) {
+            errors.push("L'immatriculation ne peut pas dépasser 20 caractères");
         }
 
         // Validation date début

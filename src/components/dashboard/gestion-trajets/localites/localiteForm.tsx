@@ -1,8 +1,9 @@
+// @/components/dashboard/gestion-trajets/localites/localiteForm.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Tag, Type, Cloud, X, Save, Plus, Check, Route } from "lucide-react";
+import { MapPin, Tag, Type, Cloud, X, Save, Plus, Check, Route, Building } from "lucide-react";
 import { LocaliteService, Troncon } from "@/services/localite/localite.service";
 
 // Types modifiés
@@ -11,8 +12,10 @@ export interface LocaliteData {
   codeLoc: string;
   libLoc: string;
   virtuel: boolean;
-  tronconIds?: number[]; // Changé en tableau
-  libelleTroncons?: string[]; // Changé en tableau
+  codeUo?: string;  // Ajout du code UO
+  libelleUo?: string; // Ajout du libellé UO pour l'affichage
+  tronconIds?: number[];
+  libelleTroncons?: string[];
 }
 
 interface LocaliteFormProps {
@@ -30,11 +33,14 @@ export default function LocaliteForm({
     codeLoc: "",
     libLoc: "",
     virtuel: false,
-    tronconIds: [], // Initialisé comme tableau vide
+    codeUo: "",  // Initialisation du code UO
+    tronconIds: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [troncons, setTroncons] = useState<Troncon[]>([]);
+  const [uos, setUos] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingTroncons, setLoadingTroncons] = useState(false);
+  const [loadingUos, setLoadingUos] = useState(false);
   const isEditMode = !!localiteData;
 
   const localiteService = LocaliteService.getInstance();
@@ -45,13 +51,15 @@ export default function LocaliteForm({
         codeLoc: localiteData.codeLoc || "",
         libLoc: localiteData.libLoc || "",
         virtuel: localiteData.virtuel || false,
-        tronconIds: localiteData.tronconIds || [], // Initialisé comme tableau
+        codeUo: localiteData.codeUo || "",  // Récupérer le code UO existant
+        tronconIds: localiteData.tronconIds || [],
       });
     }
   }, [localiteData]);
 
   useEffect(() => {
     loadTroncons();
+    loadUos();
   }, []);
 
   const loadTroncons = async () => {
@@ -64,6 +72,23 @@ export default function LocaliteForm({
       setErrors(prev => ({ ...prev, tronconIds: "Erreur lors du chargement des tronçons" }));
     } finally {
       setLoadingTroncons(false);
+    }
+  };
+
+  const loadUos = async () => {
+    setLoadingUos(true);
+    try {
+      const uosData = await localiteService.getUos();
+      const formattedUos = uosData.map(uo => ({
+        value: uo.codeUo,
+        label: `${uo.codeUo} - ${uo.libUo}`
+      }));
+      setUos(formattedUos);
+    } catch (error) {
+      console.error("Erreur lors du chargement des UOs:", error);
+      setErrors(prev => ({ ...prev, codeUo: "Erreur lors du chargement des UOs" }));
+    } finally {
+      setLoadingUos(false);
     }
   };
 
@@ -88,6 +113,11 @@ export default function LocaliteForm({
             if (value.length > 100) error = "Maximum 100 caractères";
           }
           break;
+        case "codeUo":
+          if (!value) {
+            error = "L'UO est obligatoire";
+          }
+          break;
         case "tronconIds":
           if (formData.virtuel && (!value || value.length === 0)) {
             error = "Au moins un tronçon doit être sélectionné pour une localité virtuelle";
@@ -105,7 +135,7 @@ export default function LocaliteForm({
       const newIds = currentIds.includes(tronconId)
         ? currentIds.filter(id => id !== tronconId)
         : [...currentIds, tronconId];
-      
+
       return { ...prev, tronconIds: newIds };
     });
 
@@ -118,15 +148,13 @@ export default function LocaliteForm({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const fieldValue = type === "checkbox" ? (e.target as HTMLInputElement).checked : value;
-    
+
     setFormData(prev => ({ ...prev, [name]: fieldValue }));
-    
-    // Clear error when user starts typing
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
     }
 
-    // Si on désactive "virtuel", on supprime l'erreur du tronçon
     if (name === "virtuel" && !fieldValue && errors.tronconIds) {
       setErrors(prev => ({ ...prev, tronconIds: "" }));
     }
@@ -135,9 +163,9 @@ export default function LocaliteForm({
   const handleCodeLocChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 3) value = value.slice(0, 3);
-    
+
     setFormData(prev => ({ ...prev, codeLoc: value }));
-    
+
     if (errors.codeLoc) {
       setErrors(prev => ({ ...prev, codeLoc: "" }));
     }
@@ -145,10 +173,10 @@ export default function LocaliteForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate all fields
     const newErrors: Record<string, string> = {};
-    
+
     Object.entries(formData).forEach(([key, value]) => {
       const error = validateField(key, value);
       if (error) newErrors[key] = error;
@@ -212,9 +240,8 @@ export default function LocaliteForm({
               name="codeLoc"
               value={formData.codeLoc}
               onChange={handleCodeLocChange}
-              className={`w-full px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
-                errors.codeLoc ? "border-red-500" : "border-amber-200/30 dark:border-amber-700/30"
-              }`}
+              className={`w-full px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${errors.codeLoc ? "border-red-500" : "border-amber-200/30 dark:border-amber-700/30"
+                }`}
               placeholder="Ex: 001"
               maxLength={3}
             />
@@ -234,13 +261,47 @@ export default function LocaliteForm({
               name="libLoc"
               value={formData.libLoc}
               onChange={handleChange}
-              className={`w-full px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
-                errors.libLoc ? "border-red-500" : "border-amber-200/30 dark:border-amber-700/30"
-              }`}
+              className={`w-full px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${errors.libLoc ? "border-red-500" : "border-amber-200/30 dark:border-amber-700/30"
+                }`}
               placeholder="Ex: Ouagadougou Centre"
               maxLength={100}
             />
             {errors.libLoc && <p className="text-red-500 text-xs mt-1">{errors.libLoc}</p>}
+          </div>
+
+          {/* Sélecteur d'UO */}
+          <div>
+            <label className="flex text-sm font-medium text-amber-900 dark:text-amber-100 mb-1 items-center">
+              <Building className="w-4 h-4 mr-2" />
+              UO Associée *
+            </label>
+            {loadingUos ? (
+              <div className="w-full px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200/30 dark:border-amber-700/30 rounded-lg">
+                <p className="text-amber-600/70 dark:text-amber-400/70 text-sm">
+                  Chargement des UOs...
+                </p>
+              </div>
+            ) : (
+              <select
+                name="codeUo"
+                value={formData.codeUo || ""}
+                onChange={handleChange}
+                className={`w-full px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${errors.codeUo ? "border-red-500" : "border-amber-200/30 dark:border-amber-700/30"
+                  }`}
+                required
+              >
+                <option value="">Sélectionnez une UO</option>
+                {uos.map((uo) => (
+                  <option key={uo.value} value={uo.value}>
+                    {uo.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {errors.codeUo && <p className="text-red-500 text-xs mt-1">{errors.codeUo}</p>}
+            <p className="text-amber-600/70 dark:text-amber-400/70 text-xs mt-1">
+              Unité organisationnelle à laquelle est rattachée la localité
+            </p>
           </div>
 
           <div className="pt-2">
@@ -253,14 +314,12 @@ export default function LocaliteForm({
                   onChange={handleChange}
                   className="sr-only"
                 />
-                <div className={`block w-14 h-7 rounded-full transition-colors ${
-                  formData.virtuel 
-                    ? "bg-amber-600" 
+                <div className={`block w-14 h-7 rounded-full transition-colors ${formData.virtuel
+                    ? "bg-amber-600"
                     : "bg-amber-200/50 dark:bg-amber-800/30"
-                }`}></div>
-                <div className={`absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform ${
-                  formData.virtuel ? "transform translate-x-7" : ""
-                }`}></div>
+                  }`}></div>
+                <div className={`absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform ${formData.virtuel ? "transform translate-x-7" : ""
+                  }`}></div>
               </div>
               <div className="ml-3 flex items-center">
                 <Cloud className="w-4 h-4 mr-2 text-amber-600/70 dark:text-amber-400/70" />
@@ -281,15 +340,14 @@ export default function LocaliteForm({
                 <Route className="w-4 h-4 mr-2" />
                 Tronçons Associés *
               </label>
-              
+
               {loadingTroncons ? (
                 <p className="text-amber-600/70 dark:text-amber-400/70 text-sm">
                   Chargement des tronçons...
                 </p>
               ) : (
-                <div className={`space-y-2 max-h-48 overflow-y-auto p-2 border rounded-lg ${
-                  errors.tronconIds ? "border-red-500" : "border-amber-200/30 dark:border-amber-700/30"
-                }`}>
+                <div className={`space-y-2 max-h-48 overflow-y-auto p-2 border rounded-lg ${errors.tronconIds ? "border-red-500" : "border-amber-200/30 dark:border-amber-700/30"
+                  }`}>
                   {troncons.map((troncon) => (
                     <div key={troncon.id} className="flex items-center">
                       <input
@@ -301,17 +359,15 @@ export default function LocaliteForm({
                       />
                       <label
                         htmlFor={`troncon-${troncon.id}`}
-                        className={`flex items-center w-full p-2 rounded-lg cursor-pointer transition-colors ${
-                          (formData.tronconIds || []).includes(troncon.id)
+                        className={`flex items-center w-full p-2 rounded-lg cursor-pointer transition-colors ${(formData.tronconIds || []).includes(troncon.id)
                             ? "bg-amber-100 dark:bg-amber-900/50 border border-amber-300 dark:border-amber-600"
                             : "bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200/30 dark:border-amber-700/30 hover:bg-amber-100/50 dark:hover:bg-amber-800/30"
-                        }`}
+                          }`}
                       >
-                        <div className={`w-4 h-4 border rounded mr-3 flex items-center justify-center ${
-                          (formData.tronconIds || []).includes(troncon.id)
+                        <div className={`w-4 h-4 border rounded mr-3 flex items-center justify-center ${(formData.tronconIds || []).includes(troncon.id)
                             ? "bg-amber-600 border-amber-600"
                             : "border-amber-400"
-                        }`}>
+                          }`}>
                           {(formData.tronconIds || []).includes(troncon.id) && (
                             <Check className="w-3 h-3 text-white" />
                           )}
@@ -324,9 +380,9 @@ export default function LocaliteForm({
                   ))}
                 </div>
               )}
-              
+
               {errors.tronconIds && <p className="text-red-500 text-xs mt-1">{errors.tronconIds}</p>}
-              
+
               {/* Affichage des tronçons sélectionnés */}
               {(formData.tronconIds || []).length > 0 && (
                 <div className="mt-2">
